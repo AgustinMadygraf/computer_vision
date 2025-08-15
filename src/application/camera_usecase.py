@@ -1,12 +1,13 @@
 """
 Path: src/application/camera_usecase.py
 """
-from src.domain.camera_stream import CameraStream
+from src.domain.camera_stream import CameraStreamInterface
+
 
 class CameraUseCase:
     "Caso de uso para gestionar el stream y snapshots de la cámara IP."
-    def __init__(self, ip, user, password):
-        self.camera = CameraStream(ip, user, password)
+    def __init__(self, camera_stream: CameraStreamInterface):
+        self.camera = camera_stream
 
     def get_resolution(self):
         "Obtiene la resolución del stream de video."
