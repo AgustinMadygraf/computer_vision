@@ -1,16 +1,18 @@
+"""
+Path: run.py
+"""
+
 import os
 import atexit
-from time import sleep
-from datetime import datetime
-
+import sys
 from flask import Flask, Response, jsonify, send_file, render_template_string
-import cv2
 from dotenv import load_dotenv
+from src.domain.camera_stream import CameraStream
 
-# Estabilidad RTSP (TCP + timeout 5 s)
-os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|stimeout;5000000"
+# Asegura que el directorio 'src' esté en la ruta de búsqueda
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "src")))
 
-load_dotenv(dotenv_path="src/.env")  # <-- Carga variables del .env
+load_dotenv()
 
 print("IP:", os.getenv("IP"))
 print("USER:", os.getenv("USER"))
@@ -21,25 +23,9 @@ IP = os.getenv("IP")
 USER = os.getenv("USER")
 PASSWORD = os.getenv("PASSWORD")
 
-RTSP_URL = f"rtsp://{IP}:554/user={USER}&password={PASSWORD}&channel=1&stream=0.sdp"
-print(RTSP_URL)
-# --- Inicializar captura ---
-cap = cv2.VideoCapture(RTSP_URL, cv2.CAP_FFMPEG)
-if not cap.isOpened():
-    raise SystemExit("No se pudo abrir el stream RTSP con OpenCV. Probá PyAV.")
-
-# Leer un frame para que OpenCV actualice metadatos
-for _ in range(20):  # pequeños reintentos por si tarda en estabilizar
-    ok, frame = cap.read()
-    if ok:
-        break
-    sleep(0.1)
-
-if not ok:
-    raise SystemExit("No se pudo obtener el primer frame del RTSP.")
-
-width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+# Inicializa el stream de cámara usando la clase de dominio
+camera = CameraStream(IP, USER, PASSWORD)
+width, height = camera.get_resolution()
 print(f"Resolución detectada: {width} x {height}")
 
 app = Flask(__name__)
@@ -59,52 +45,42 @@ INDEX_HTML = """
 """
 
 def mjpeg_generator():
-    # Calidad JPEG balanceada para LAN (80). Ajustá si querés menos ancho de banda.
-    encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 80]
-    while True:
-        ok, frame = cap.read()
-        if not ok:
-            # Si hay microcortes, esperamos y seguimos
-            sleep(0.05)
-            continue
-        ok, jpg = cv2.imencode(".jpg", frame, encode_params)
-        if not ok:
-            continue
-        yield (b"--frame\r\n"
-               b"Content-Type: image/jpeg\r\n\r\n" +
-               jpg.tobytes() +
-               b"\r\n")
+    "Generador de stream MJPEG."
+    yield from camera.mjpeg_generator(quality=80)
+
 
 @app.route("/")
 def index():
+    "Página principal."
     return render_template_string(INDEX_HTML, w=width, h=height)
+
 
 @app.route("/stream.mjpg")
 def stream_mjpeg():
+    "Stream MJPEG."
     return Response(mjpeg_generator(),
                     mimetype="multipart/x-mixed-replace; boundary=frame")
 
+
 @app.route("/resolution")
 def resolution():
+    "Obtiene la resolución del stream de video."
     return jsonify({"width": width, "height": height})
+
 
 @app.route("/snapshot.jpg")
 def snapshot():
-    # Toma un frame y lo devuelve como archivo JPG
-    ok, frame = cap.read()
-    if not ok:
+    "Toma un snapshot del stream de video."
+    fname = camera.save_snapshot()
+    if fname is None:
         return "No se pudo capturar frame", 503
-    fname = f"snapshot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
-    cv2.imwrite(fname, frame)
     return send_file(fname, mimetype="image/jpeg")
+
 
 @atexit.register
 def cleanup():
-    try:
-        cap.release()
-    except Exception:
-        pass
+    "Libera los recursos de la cámara."
+    camera.release()
 
 if __name__ == "__main__":
-    # Escucha en toda la LAN (intranet)
     app.run(host="0.0.0.0", port=5000, threaded=True)
