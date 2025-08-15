@@ -5,12 +5,16 @@ from datetime import datetime
 
 from flask import Flask, Response, jsonify, send_file, render_template_string
 import cv2
-from dotenv import load_dotenv  # <-- Agrega esto
-
-load_dotenv()  # <-- Carga variables del .env
+from dotenv import load_dotenv
 
 # Estabilidad RTSP (TCP + timeout 5 s)
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|stimeout;5000000"
+
+load_dotenv(dotenv_path="src/.env")  # <-- Carga variables del .env
+
+print("IP:", os.getenv("IP"))
+print("USER:", os.getenv("USER"))
+print("PASSWORD:", os.getenv("PASSWORD"))
 
 # Obtiene datos de entorno
 IP = os.getenv("IP")
@@ -18,7 +22,7 @@ USER = os.getenv("USER")
 PASSWORD = os.getenv("PASSWORD")
 
 RTSP_URL = f"rtsp://{IP}:554/user={USER}&password={PASSWORD}&channel=1&stream=0.sdp"
-
+print(RTSP_URL)
 # --- Inicializar captura ---
 cap = cv2.VideoCapture(RTSP_URL, cv2.CAP_FFMPEG)
 if not cap.isOpened():
