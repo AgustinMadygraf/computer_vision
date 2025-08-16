@@ -30,12 +30,35 @@ class OpenCVCameraStream(CameraStreamInterface):
         "Obtiene la resolución del stream de video."
         return self.width, self.height
 
-    def read_frame(self):
-        "Lee un frame del stream de video."
+    def read_frame(self, max_retries=3):
+        "Lee un frame del stream de video. Reintenta y reconecta si es necesario."
+        for _attempt in range(max_retries):
+            ok, frame = self.cap.read()
+            if ok:
+                return frame
+            sleep(0.1)
+        # Si falla, intenta reconectar
+        self._reconnect()
         ok, frame = self.cap.read()
-        if not ok:
-            return None
-        return frame
+        if ok:
+            return frame
+        return None
+
+    def _reconnect(self):
+        "Intenta reabrir el stream RTSP si se perdió la conexión."
+        try:
+            self.cap.release()
+        except cv2.error:
+            pass
+        self.cap = cv2.VideoCapture(self.rtsp_url, cv2.CAP_FFMPEG)
+        # Espera a que esté disponible el primer frame
+        for _ in range(20):
+            ok, _frame = self.cap.read()
+            if ok:
+                self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                break
+            sleep(0.1)
 
     def mjpeg_generator(self, quality=80):
         "Generador de stream MJPEG."

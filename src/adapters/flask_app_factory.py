@@ -3,11 +3,15 @@ Path: src/adapters/flask_app_factory.py
 """
 import atexit
 from flask import Flask
+from flask_cors import CORS
 from src.presentation.camera_controller import camera_bp, register_camera_routes
 
 def create_app(adapter):
     "Crea y configura la app Flask con las rutas necesarias usando blueprints."
     app = Flask(__name__)
+
+    # Habilita CORS para todos los orígenes
+    CORS(app)  # <-- Agrega esta línea
 
     # Registrar las rutas del controlador de cámara
     bp = register_camera_routes(camera_bp, adapter)
