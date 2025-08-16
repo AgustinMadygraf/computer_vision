@@ -1,3 +1,18 @@
+---
+
+## Preguntas frecuentes y detalles técnicos
+
+### ¿El endpoint `/resolution` siempre está disponible y responde rápido?
+El endpoint `/resolution` responde rápidamente porque retorna la resolución detectada al iniciar el backend. Sin embargo, depende de que la cámara esté correctamente conectada y configurada al arrancar el servidor. Si la cámara no está disponible, el backend no inicia y el endpoint no estará accesible.
+
+### ¿El stream MJPEG puede caerse y cómo se detecta desde el frontend?
+El stream MJPEG puede caerse si la conexión RTSP se pierde o la cámara deja de enviar frames. Desde el frontend, esto se detecta porque la imagen embebida (`<img src="/stream.mjpg">`) dejará de actualizarse y mostrará el último frame recibido. No hay una señal explícita de error, pero el usuario puede notar que el video está congelado. Se recomienda que el frontend implemente algún mecanismo visual para indicar la pérdida de conexión si es necesario.
+
+### ¿Hay algún límite de frecuencia para tomar snapshots?
+No existe un límite de frecuencia implementado en el backend para el endpoint `/snapshot.jpg`. Cada solicitud genera un snapshot en tiempo real. Sin embargo, tomar snapshots de forma muy frecuente puede sobrecargar la cámara o el servidor. Si no se puede capturar un frame, el backend responde con código 503.
+
+### ¿El backend soporta múltiples cámaras o solo una?
+Actualmente, el backend está diseñado para soportar una sola cámara IP, configurada mediante variables de entorno. Para soportar múltiples cámaras, sería necesario modificar la arquitectura para permitir instancias y rutas diferenciadas por cámara.
 
 # Backend API Documentation
 
