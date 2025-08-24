@@ -10,7 +10,7 @@ export class IStreamStatusPresenter {
     showRecovered() { throw new Error('Not implemented'); }
 }
 
-import { StreamEntity } from '../../entities/stream_entity.js';
+import { StreamEntity } from '../entities/stream_entity.js';
 // La implementación concreta se importa donde se use, no aquí
 
 export class StreamStatusUseCase {
