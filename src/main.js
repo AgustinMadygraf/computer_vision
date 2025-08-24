@@ -11,32 +11,30 @@ const mjpegPath = STREAM_SERVER_CONFIG.mjpegPath;
 const host = STREAM_SERVER_CONFIG.host;
 const streamController = new StreamController();
 
-function trySetMjpegStream(imgElement) {
-    let triedPorts = 0;
-    function tryPort(portIdx) {
-        if (portIdx >= mjpegPorts.length) {
-            imgElement.alt = 'No se pudo cargar el stream';
-            console.warn('Advertencia: No se pudo conectar al stream MJPEG en ninguno de los puertos configurados:', mjpegPorts);
-            return;
-        }
-        const url = `${protocol}//${host}:${mjpegPorts[portIdx]}${mjpegPath}`;
-        try {
-            imgElement.src = url;
-            imgElement.onerror = () => {
-                triedPorts++;
-                tryPort(portIdx + 1);
-            };
-        } catch (err) {
-            console.warn('Advertencia: Error al intentar conectar al stream MJPEG en', url, err);
-            tryPort(portIdx + 1);
-        }
-    }
-    tryPort(0);
+function getStreamUrl(type, index) {
+    return `${protocol}//${host}:${mjpegPorts[0]}/api/computer_vision/${type}/${index}/stream.mjpg`;
+}
+
+function getSnapshotUrl(type, index) {
+    return `${protocol}//${host}:${mjpegPorts[0]}/api/computer_vision/${type}/${index}/snapshot.jpg`;
+}
+
+// Ejemplo de uso: el tipo y el índice deberían venir de la UI
+const selectedType = 'usb'; // o 'wifi', 'img'
+const selectedIndex = 0;    // el índice seleccionado por el usuario
+
+function trySetMjpegStream(imgElement, type, index) {
+    const url = getStreamUrl(type, index);
+    imgElement.src = url;
+    imgElement.onerror = () => {
+        imgElement.alt = 'No se pudo cargar el stream';
+        console.warn(`Advertencia: No se pudo conectar al stream ${type} ${index}`);
+    };
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     const imgElement = document.getElementById('stream-img');
-    trySetMjpegStream(imgElement);
+    trySetMjpegStream(imgElement, selectedType, selectedIndex);
 
     const snapshotBtn = document.getElementById('snapshot-btn');
     const snapshotResult = document.getElementById('snapshot-result');
@@ -44,25 +42,16 @@ document.addEventListener('DOMContentLoaded', () => {
         snapshotBtn.addEventListener('click', async () => {
             snapshotBtn.disabled = true;
             snapshotBtn.textContent = 'Capturando...';
-            let success = false;
-            let lastError = null;
-            for (let i = 0; i < mjpegPorts.length; i++) {
-                const url = `${protocol}//${host}:${mjpegPorts[i]}${STREAM_SERVER_CONFIG.snapshotPath}`;
-                try {
-                    const response = await fetch(url);
-                    if (!response.ok) throw new Error('No se pudo capturar el snapshot');
-                    const blob = await response.blob();
-                    const imgUrl = URL.createObjectURL(blob);
-                    snapshotResult.innerHTML = `<img src="${imgUrl}" alt="Snapshot" class="img-fluid" style="max-width: 400px;" />` +
-                        `<div class="mt-2"><a href="${imgUrl}" download="snapshot.jpg" class="btn btn-success">Descargar</a></div>`;
-                    success = true;
-                    break;
-                } catch (err) {
-                    lastError = err;
-                }
-            }
-            if (!success) {
-                snapshotResult.innerHTML = `<div class="alert alert-danger">${lastError ? lastError.message : 'No se pudo capturar el snapshot'}</div>`;
+            try {
+                const url = getSnapshotUrl(selectedType, selectedIndex);
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('No se pudo capturar el snapshot');
+                const blob = await response.blob();
+                const imgUrl = URL.createObjectURL(blob);
+                snapshotResult.innerHTML = `<img src="${imgUrl}" alt="Snapshot" class="img-fluid" style="max-width: 400px;" />` +
+                    `<div class="mt-2"><a href="${imgUrl}" download="snapshot.jpg" class="btn btn-success">Descargar</a></div>`;
+            } catch (err) {
+                snapshotResult.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
             }
             snapshotBtn.disabled = false;
             snapshotBtn.textContent = 'Snapshot';
