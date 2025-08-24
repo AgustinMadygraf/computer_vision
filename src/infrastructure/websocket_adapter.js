@@ -10,9 +10,9 @@ export class IWebSocketAdapter {
 }
 
 export class WebSocketAdapter {
-	constructor({ host, port, onOpen, onMessage, onError, onClose }) {
+	constructor({ host, onOpen, onMessage, onError, onClose }) {
 		this.host = host;
-		this.port = port;
+		this.port = STREAM_SERVER_CONFIG.wsPort;
 		this.ws = null;
 		this.onOpen = onOpen;
 		this.onMessage = onMessage;
@@ -22,7 +22,7 @@ export class WebSocketAdapter {
 
 	connect() {
 		const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-		const wsUrl = `${protocol}//${this.host}:${this.port}${STREAM_SERVER_CONFIG.wsPath}`;
+	const wsUrl = `${protocol}//${this.host}:${STREAM_SERVER_CONFIG.wsPort}${STREAM_SERVER_CONFIG.wsPath}`;
 		this.ws = new WebSocket(wsUrl);
 		this.ws.onopen = this.onOpen;
 		this.ws.onmessage = this.onMessage;

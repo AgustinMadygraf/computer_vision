@@ -26,7 +26,7 @@ export class StreamWebSocketHandler {
         try {
 
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${STREAM_SERVER_CONFIG.host}:${STREAM_SERVER_CONFIG.port}${STREAM_SERVER_CONFIG.wsPath}`;
+            const wsUrl = `${protocol}//${STREAM_SERVER_CONFIG.host}:${STREAM_SERVER_CONFIG.wsPort}${STREAM_SERVER_CONFIG.wsPath}`;
 
             this.ws = new WebSocket(wsUrl);
 
