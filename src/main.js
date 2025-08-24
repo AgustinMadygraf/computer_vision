@@ -32,7 +32,34 @@ function trySetMjpegStream(imgElement, type, index) {
     };
 }
 
+async function fetchAvailableStreams() {
+    try {
+        const response = await fetch(`${protocol}//${host}:${mjpegPorts[0]}/api/computer_vision/streams`);
+        if (!response.ok) throw new Error('No se pudo obtener la lista de streams');
+        const streams = await response.json();
+
+        // Ejemplo: mostrar en consola y poblar un <select> en la UI
+        console.log('Streams disponibles:', streams);
+
+        const select = document.getElementById('stream-select');
+        if (select) {
+            select.innerHTML = '';
+            Object.entries(streams).forEach(([type, items]) => {
+                items.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = `${type}:${item.index}`;
+                    option.textContent = `${item.name} (${type})`;
+                    select.appendChild(option);
+                });
+            });
+        }
+    } catch (err) {
+        console.error('Error al obtener streams:', err);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    fetchAvailableStreams();
     const imgElement = document.getElementById('stream-img');
     trySetMjpegStream(imgElement, selectedType, selectedIndex);
 
