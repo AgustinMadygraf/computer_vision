@@ -15,28 +15,29 @@ const streamController = new StreamController();
 let filtroWs = null;
 let filtroActivo = true;
 
-function conectarFiltroWebSocket() {
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${host}:${STREAM_SERVER_CONFIG.wsPort}${STREAM_SERVER_CONFIG.wsPath}`;
-    filtroWs = new WebSocket(wsUrl);
-    filtroWs.onopen = () => {
-        setFiltroStatus('Conectado', 'success');
-        // Por defecto, filtro activado
-        filtroWs.send('filtro:on');
-    };
-    filtroWs.onmessage = (event) => {
-        let msg = event.data;
-        try {
-            const data = JSON.parse(msg);
-            msg = data.message || msg;
-        } catch {}
-        setFiltroStatus(msg, msg.includes('activado') ? 'success' : 'warning');
-    };
-    filtroWs.onerror = () => {
-        setFiltroStatus('Error de conexión', 'danger');
-    };
-    filtroWs.onclose = () => {
-        setFiltroStatus('Desconectado', 'danger');
+
+let currentUserId = null;
+function getStreamUrl(type, index, userId = null) {
+    let url = `${protocol}//${host}:${mjpegPorts[0]}/api/computer_vision/${type}/${index}/stream.mjpg`;
+    if (userId) {
+        url += `?user_id=${encodeURIComponent(userId)}`;
+    }
+    return url;
+}
+
+function getSnapshotUrl(type, index) {
+    return `${protocol}//${host}:${mjpegPorts[0]}/api/computer_vision/${type}/${index}/snapshot.jpg`;
+}
+
+const selectedType = 'usb';
+const selectedIndex = 0;
+
+function trySetMjpegStream(imgElement, type, index, userId = null) {
+    const url = getStreamUrl(type, index, userId);
+    imgElement.src = url;
+    imgElement.onerror = () => {
+        imgElement.alt = 'No se pudo cargar el stream';
+        console.warn(`Advertencia: No se pudo conectar al stream ${type} ${index}`);
     };
 }
 
@@ -49,29 +50,53 @@ function setFiltroStatus(msg, type = 'info') {
 
 function enviarFiltroEstado(estado) {
     if (filtroWs && filtroWs.readyState === 1) {
+        console.log('[Filtro] Enviando estado:', estado ? 'filtro:on' : 'filtro:off');
         filtroWs.send(estado ? 'filtro:on' : 'filtro:off');
         filtroActivo = estado;
     }
 }
 
-function getStreamUrl(type, index) {
-    return `${protocol}//${host}:${mjpegPorts[0]}/api/computer_vision/${type}/${index}/stream.mjpg`;
-}
-
-function getSnapshotUrl(type, index) {
-    return `${protocol}//${host}:${mjpegPorts[0]}/api/computer_vision/${type}/${index}/snapshot.jpg`;
-}
-
-// Ejemplo de uso: el tipo y el índice deberían venir de la UI
-const selectedType = 'usb'; // o 'wifi', 'img'
-const selectedIndex = 0;    // el índice seleccionado por el usuario
-
-function trySetMjpegStream(imgElement, type, index) {
-    const url = getStreamUrl(type, index);
-    imgElement.src = url;
-    imgElement.onerror = () => {
-        imgElement.alt = 'No se pudo cargar el stream';
-        console.warn(`Advertencia: No se pudo conectar al stream ${type} ${index}`);
+function conectarFiltroWebSocket() {
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${host}:${STREAM_SERVER_CONFIG.wsPort}${STREAM_SERVER_CONFIG.wsPath}`;
+    console.log('[WebSocket] Intentando conectar a:', wsUrl);
+    filtroWs = new WebSocket(wsUrl);
+    filtroWs.onopen = () => {
+        console.log('[WebSocket] Conectado');
+        setFiltroStatus('Conectado', 'success');
+        filtroWs.send('filtro:on');
+    };
+    filtroWs.onmessage = (event) => {
+        let msg = event.data;
+        let userIdUpdated = false;
+        try {
+            const data = JSON.parse(msg);
+            if (data.user_id) {
+                if (currentUserId !== data.user_id) {
+                    console.log('[WebSocket] Nuevo user_id recibido:', data.user_id);
+                    currentUserId = data.user_id;
+                    const imgElement = document.getElementById('stream-img');
+                    if (imgElement) {
+                        console.log('[Stream] Actualizando src MJPEG con user_id:', currentUserId);
+                        trySetMjpegStream(imgElement, selectedType, selectedIndex, currentUserId);
+                    }
+                    userIdUpdated = true;
+                }
+            }
+            msg = data.message || msg;
+        } catch {}
+        setFiltroStatus(msg, msg.includes('activado') ? 'success' : 'warning');
+        if (userIdUpdated) {
+            // Ya actualizado arriba
+        }
+    };
+    filtroWs.onerror = (err) => {
+        console.error('[WebSocket] Error de conexión', err);
+        setFiltroStatus('Error de conexión', 'danger');
+    };
+    filtroWs.onclose = () => {
+        console.warn('[WebSocket] Conexión cerrada');
+        setFiltroStatus('Desconectado', 'danger');
     };
 }
 
@@ -80,20 +105,12 @@ async function fetchAvailableStreams() {
         const response = await fetch(`${protocol}//${host}:${mjpegPorts[0]}/api/computer_vision/streams`);
         if (!response.ok) throw new Error('No se pudo obtener la lista de streams');
         const streams = await response.json();
-
-        // Ejemplo: mostrar en consola y poblar un <select> en la UI
         console.log('Streams disponibles:', streams);
-
         const select = document.getElementById('stream-select');
         if (select) {
             select.innerHTML = '';
             Object.entries(streams).forEach(([type, items]) => {
-                items.forEach(item => {
-                    const option = document.createElement('option');
-                    option.value = `${type}:${item.index}`;
-                    option.textContent = `${item.name} (${type})`;
-                    select.appendChild(option);
-                });
+                items.forEach(item => { /* ... */ });
             });
         }
     } catch (err) {
@@ -114,14 +131,16 @@ document.addEventListener('DOMContentLoaded', () => {
             snapshotBtn.textContent = 'Capturando...';
             try {
                 const url = getSnapshotUrl(selectedType, selectedIndex);
+                console.log('[Snapshot] Solicitando snapshot a:', url);
                 const response = await fetch(url);
                 if (!response.ok) throw new Error('No se pudo capturar el snapshot');
                 const blob = await response.blob();
                 const imgUrl = URL.createObjectURL(blob);
-                snapshotResult.innerHTML = `<img src="${imgUrl}" alt="Snapshot" class="img-fluid" style="max-width: 400px;" />` +
-                    `<div class="mt-2"><a href="${imgUrl}" download="snapshot.jpg" class="btn btn-success">Descargar</a></div>`;
+                snapshotResult.innerHTML = `<img src="${imgUrl}" class="img-fluid mt-2" alt="Snapshot" />`;
+                console.log('[Snapshot] Snapshot recibido y mostrado');
             } catch (err) {
-                snapshotResult.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+                snapshotResult.innerHTML = `<div class="alert alert-danger">Error: ${err.message}</div>`;
+                console.error('[Snapshot] Error:', err);
             }
             snapshotBtn.disabled = false;
             snapshotBtn.textContent = 'Snapshot';
@@ -132,10 +151,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const filtroSwitch = document.getElementById('filtro-switch');
     conectarFiltroWebSocket();
     if (filtroSwitch) {
-            filtroSwitch.addEventListener('change', (e) => {
-                console.log('Filtro amarillo:', e.target.checked ? 'activado' : 'desactivado');
-                enviarFiltroEstado(e.target.checked);
-            });
+        filtroSwitch.addEventListener('change', (e) => {
+            console.log('Filtro amarillo:', e.target.checked ? 'activado' : 'desactivado');
+            enviarFiltroEstado(e.target.checked);
+        });
     }
 });
 
