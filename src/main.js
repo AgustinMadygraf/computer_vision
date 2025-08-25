@@ -11,6 +11,49 @@ const mjpegPath = STREAM_SERVER_CONFIG.mjpegPath;
 const host = STREAM_SERVER_CONFIG.host;
 const streamController = new StreamController();
 
+// --- WebSocket para filtro amarillo ---
+let filtroWs = null;
+let filtroActivo = true;
+
+function conectarFiltroWebSocket() {
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${host}:${STREAM_SERVER_CONFIG.wsPort}${STREAM_SERVER_CONFIG.wsPath}`;
+    filtroWs = new WebSocket(wsUrl);
+    filtroWs.onopen = () => {
+        setFiltroStatus('Conectado', 'success');
+        // Por defecto, filtro activado
+        filtroWs.send('filtro:on');
+    };
+    filtroWs.onmessage = (event) => {
+        let msg = event.data;
+        try {
+            const data = JSON.parse(msg);
+            msg = data.message || msg;
+        } catch {}
+        setFiltroStatus(msg, msg.includes('activado') ? 'success' : 'warning');
+    };
+    filtroWs.onerror = () => {
+        setFiltroStatus('Error de conexión', 'danger');
+    };
+    filtroWs.onclose = () => {
+        setFiltroStatus('Desconectado', 'danger');
+    };
+}
+
+function setFiltroStatus(msg, type = 'info') {
+    const statusDiv = document.getElementById('filtro-status');
+    if (statusDiv) {
+        statusDiv.innerHTML = `<span class="badge bg-${type}">${msg}</span>`;
+    }
+}
+
+function enviarFiltroEstado(estado) {
+    if (filtroWs && filtroWs.readyState === 1) {
+        filtroWs.send(estado ? 'filtro:on' : 'filtro:off');
+        filtroActivo = estado;
+    }
+}
+
 function getStreamUrl(type, index) {
     return `${protocol}//${host}:${mjpegPorts[0]}/api/computer_vision/${type}/${index}/stream.mjpg`;
 }
@@ -84,9 +127,23 @@ document.addEventListener('DOMContentLoaded', () => {
             snapshotBtn.textContent = 'Snapshot';
         });
     }
+
+    // Filtro amarillo
+    const filtroSwitch = document.getElementById('filtro-switch');
+    conectarFiltroWebSocket();
+    if (filtroSwitch) {
+            filtroSwitch.addEventListener('change', (e) => {
+                console.log('Filtro amarillo:', e.target.checked ? 'activado' : 'desactivado');
+                enviarFiltroEstado(e.target.checked);
+            });
+    }
 });
 
 streamController.start();
 window.addEventListener('beforeunload', () => {
     streamController.stop();
+    if (filtroWs && filtroWs.readyState === 1) {
+        filtroWs.send('close');
+        filtroWs.close();
+    }
 });
