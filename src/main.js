@@ -8,8 +8,10 @@ const protocol = window.location.protocol;
 const mjpegPort = STREAM_SERVER_CONFIG.mjpegPort;
 const host = STREAM_SERVER_CONFIG.host;
 
-function getStreamUrl(type, index, userId = null) {
-    let url = `${protocol}//${host}:${mjpegPort}/api/computer_vision/${type}/${index}/stream.mjpg`;
+function getStreamUrl(type, index, filtroActivo = false, userId = null) {
+    // Alterna entre stream_filtro.mjpg y stream_original.mjpg según filtroActivo
+    const streamName = filtroActivo ? 'stream_filtro.mjpg' : 'stream_original.mjpg';
+    let url = `${protocol}//${host}:${mjpegPort}/api/computer_vision/${type}/${index}/${streamName}`;
     if (userId) {
         url += `?user_id=${encodeURIComponent(userId)}`;
     }
@@ -29,6 +31,15 @@ function trySetMjpegStream(imgElement, type, index, userId = null) {
     imgElement.onerror = () => {
         imgElement.alt = 'No se pudo cargar el stream';
         console.warn(`Advertencia: No se pudo conectar al stream ${type} ${index}`);
+    };
+}
+
+function setStreamSource(imgElement, type, index, filtroActivo = false, userId = null) {
+    const url = getStreamUrl(type, index, filtroActivo, userId);
+    imgElement.src = url;
+    imgElement.onerror = () => {
+        imgElement.alt = 'No se pudo cargar el stream';
+        console.warn(`Advertencia: No se pudo conectar al stream ${type} ${index} (${filtroActivo ? 'filtro' : 'original'})`);
     };
 }
 
@@ -53,7 +64,10 @@ async function fetchAvailableStreams() {
 document.addEventListener('DOMContentLoaded', () => {
     fetchAvailableStreams();
     const imgElement = document.getElementById('stream-img');
-    trySetMjpegStream(imgElement, selectedType, selectedIndex);
+    const filtroSwitch = document.getElementById('filtro-switch');
+    // Inicializa el stream según el estado del filtro
+    const filtroActivoInicial = filtroSwitch ? filtroSwitch.checked : false;
+    setStreamSource(imgElement, selectedType, selectedIndex, filtroActivoInicial);
 
     const snapshotBtn = document.getElementById('snapshot-btn');
     const snapshotResult = document.getElementById('snapshot-result');
@@ -79,20 +93,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Filtro amarillo (GET booleano, ruta dinámica)
-    const filtroSwitch = document.getElementById('filtro-switch');
+    // Filtro amarillo: alterna la fuente del stream
     if (filtroSwitch) {
-        filtroSwitch.addEventListener('change', async (e) => {
-            const estado = e.target.checked;
-            // Usa el tipo e índice seleccionados
-            const url = `${protocol}//${host}:${mjpegPort}/api/computer_vision/${selectedType}/${selectedIndex}/filtro_amarillo?enabled=${estado}`;
-            try {
-                const response = await fetch(url, { method: 'GET' });
-                if (!response.ok) throw new Error('No se pudo cambiar el estado del filtro');
-                console.log('Filtro amarillo:', estado ? 'activado' : 'desactivado');
-            } catch (err) {
-                console.error('Error al cambiar el filtro amarillo:', err);
-            }
+        filtroSwitch.addEventListener('change', (e) => {
+            const filtroActivo = e.target.checked;
+            setStreamSource(imgElement, selectedType, selectedIndex, filtroActivo);
+            console.log('Filtro amarillo:', filtroActivo ? 'activado' : 'desactivado');
         });
     }
 });
