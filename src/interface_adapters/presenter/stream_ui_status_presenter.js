@@ -11,6 +11,7 @@ export class StreamUIStatusPresenter {
     }
 
     showNotification(message, type = 'info') {
+        // Presenta una notificación en la UI, sin lógica de control ni eventos
         let notificationsContainer = this.domAdapter.getElement('ws-notifications');
         if (!notificationsContainer) {
             notificationsContainer = document.createElement('div');
@@ -37,12 +38,11 @@ export class StreamUIStatusPresenter {
 
         notificationsContainer.appendChild(notification);
 
-        const toast = new bootstrap.Toast(notification, { autohide: true, delay: 5000 });
-        toast.show();
-
-        notification.addEventListener('hidden.bs.toast', () => {
-            notification.remove();
-        });
+        // La lógica de control de duración/autohide debe ser gestionada por el controlador/caso de uso
+        if (window.bootstrap && window.bootstrap.Toast) {
+            const toast = new window.bootstrap.Toast(notification, { autohide: true, delay: 5000 });
+            toast.show();
+        }
     }
 
     showStatus(message) {
@@ -50,18 +50,15 @@ export class StreamUIStatusPresenter {
     }
 
     showLost() {
+        // Presenta el estado de "perdido" en la UI
         this.domAdapter.addClass('stream-img', 'stream-lost');
         this.showStatus('Se ha perdido la conexión con la cámara');
     }
 
     showRecovered() {
+        // Presenta el estado de "recuperado" en la UI
         this.domAdapter.removeClass('stream-img', 'stream-lost');
         this.showStatus('Conexión restablecida');
-        const img = this.domAdapter.getElement('stream-img');
-        if (img) {
-            const src = img.src;
-            img.src = '';
-            setTimeout(() => { img.src = src; }, 500);
-        }
+        // La lógica de recarga de imagen debe ser gestionada por el controlador/caso de uso
     }
 }

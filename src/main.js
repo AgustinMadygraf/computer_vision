@@ -3,6 +3,7 @@ Path: static/src/main.js
 */
 
 import { STREAM_SERVER_CONFIG } from './infrastructure/config.js';
+import { StreamUIController } from './interface_adapters/controllers/stream_ui_controller.js';
 
 const protocol = window.location.protocol;
 const mjpegPort = STREAM_SERVER_CONFIG.mjpegPort;
@@ -65,10 +66,22 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchAvailableStreams();
     const imgElement = document.getElementById('stream-img');
     const filtroSwitch = document.getElementById('filtro-switch');
-    // Inicializa el stream según el estado del filtro
     const filtroActivoInicial = filtroSwitch ? filtroSwitch.checked : false;
-    setStreamSource(imgElement, selectedType, selectedIndex, filtroActivoInicial);
 
+    // Instanciar presentador y caso de uso mínimos para el controlador
+    import('./interface_adapters/presenter/stream_ui_status_presenter.js').then(({ StreamUIStatusPresenter }) => {
+        import('./use_cases/stream_status_use_case.js').then(({ StreamStatusUseCase }) => {
+            const uiPresenter = new StreamUIStatusPresenter();
+            const streamStatusUseCase = new StreamStatusUseCase(null, uiPresenter); // null para entity, solo para demo
+            const streamUIController = new StreamUIController({ streamStatusUseCase, uiPresenter });
+            console.log('[main.js] Instanciado StreamUIController:', streamUIController);
+            streamUIController.bindUIEvents({ filtroSwitch, imgElement });
+            // Llamar explícitamente al cambio inicial
+            streamUIController.onFiltroChange(filtroActivoInicial, imgElement);
+        });
+    });
+
+    // SNAPSHOT
     const snapshotBtn = document.getElementById('snapshot-btn');
     const snapshotResult = document.getElementById('snapshot-result');
     if (snapshotBtn) {
@@ -90,15 +103,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             snapshotBtn.disabled = false;
             snapshotBtn.textContent = 'Snapshot';
-        });
-    }
-
-    // Filtro amarillo: alterna la fuente del stream
-    if (filtroSwitch) {
-        filtroSwitch.addEventListener('change', (e) => {
-            const filtroActivo = e.target.checked;
-            setStreamSource(imgElement, selectedType, selectedIndex, filtroActivo);
-            console.log('Filtro amarillo:', filtroActivo ? 'activado' : 'desactivado');
         });
     }
 });

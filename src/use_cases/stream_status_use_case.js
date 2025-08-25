@@ -48,4 +48,28 @@ export class StreamStatusUseCase {
                 break;
         }
     }
+
+    /**
+     * Alterna la fuente del stream en el elemento img según el filtro
+     * @param {Object} params
+     * @param {boolean} params.filtroActivo
+     * @param {HTMLElement} params.imgElement
+     */
+    changeStreamSource({ filtroActivo, imgElement }) {
+        // Por simplicidad, usar los valores fijos del main.js
+        const type = 'usb';
+        const index = 0;
+        const protocol = window.location.protocol;
+        const host = window.STREAM_SERVER_CONFIG?.host || '127.0.0.1';
+        const mjpegPort = window.STREAM_SERVER_CONFIG?.mjpegPort || 5001;
+        const url = filtroActivo
+            ? `${protocol}//${host}:${mjpegPort}/api/computer_vision/${type}/${index}/stream_filtro.mjpg`
+            : `${protocol}//${host}:${mjpegPort}/api/computer_vision/${type}/${index}/stream_original.mjpg`;
+        imgElement.src = url;
+        imgElement.onerror = () => {
+            imgElement.alt = 'No se pudo cargar el stream';
+            console.warn(`[StreamStatusUseCase] No se pudo conectar al stream ${type} ${index} (${filtroActivo ? 'filtro' : 'original'})`);
+        };
+        this.presenter.showStatus(`Filtro amarillo: ${filtroActivo ? 'activado' : 'desactivado'}`);
+    }
 }
