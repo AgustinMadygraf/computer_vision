@@ -2,7 +2,12 @@
 Path: static/src/infrastructure/http_adapter.js
 */
 
-export class HttpAdapter {
+export class IHttpAdapter {
+	async get(url) { throw new Error('Not implemented'); }
+	async getText(url) { throw new Error('Not implemented'); }
+}
+
+export class HttpAdapter extends IHttpAdapter {
 	async get(url) {
 		try {
 			const response = await fetch(url);

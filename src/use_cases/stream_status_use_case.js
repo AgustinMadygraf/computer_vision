@@ -18,13 +18,14 @@ export class StreamStatusUseCase {
      * @param {StreamEntity} entity
      * @param {IStreamStatusPresenter} presenter
      * @param {Object} [adapters]
-     * @param {IWebSocketAdapter} [adapters.wsAdapter]
-     * @param {IHttpAdapter} [adapters.httpAdapter]
-     * @param {IDomAdapter} [adapters.domAdapter]
+     * @param {IWebSocketAdapter} [adapters.wsAdapter] - Debe ser una interfaz, no una clase concreta
+     * @param {IHttpAdapter} [adapters.httpAdapter] - Debe ser una interfaz, no una clase concreta
+     * @param {IDomAdapter} [adapters.domAdapter] - Debe ser una interfaz, no una clase concreta
      */
     constructor(entity, presenter, adapters = {}) {
         this.entity = entity;
         this.presenter = presenter;
+        // Solo interfaces, nunca clases concretas
         this.wsAdapter = adapters.wsAdapter || null;
         this.httpAdapter = adapters.httpAdapter || null;
         this.domAdapter = adapters.domAdapter || null;

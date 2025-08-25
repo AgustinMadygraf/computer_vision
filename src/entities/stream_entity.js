@@ -10,14 +10,15 @@ export class StreamEntity {
      * @param {string} [options.status]
      * @param {string|null} [options.lastEvent]
      * @param {Object|null} [options.resolution]
-     * @param {IWebSocketAdapter} [options.wsAdapter]
-     * @param {IHttpAdapter} [options.httpAdapter]
+     * @param {IWebSocketAdapter} [options.wsAdapter] - Debe ser una interfaz, no una clase concreta
+     * @param {IHttpAdapter} [options.httpAdapter] - Debe ser una interfaz, no una clase concreta
      */
     constructor({ id = null, status = 'unknown', lastEvent = null, resolution = null, wsAdapter = null, httpAdapter = null } = {}) {
         this.id = id;
         this.status = status; // 'active', 'lost', 'recovered', etc.
         this.lastEvent = lastEvent; // Último evento recibido
         this.resolution = resolution; // { width, height } o similar
+        // Solo interfaces, nunca clases concretas
         this.wsAdapter = wsAdapter;
         this.httpAdapter = httpAdapter;
     }

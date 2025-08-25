@@ -3,19 +3,18 @@ Path: static/src/interface_adapters/controllers/stream_controller.js
 */
 
 
-import { StreamWebSocketHandler } from '../gateway/stream_web_socket.js';
-import { DomAdapter } from '../../infrastructure/dom_adapter.js';
+import { StreamApplicationService } from '../../application/stream_application_service.js';
 
 export class StreamController {
-    constructor(streamWebSocketHandler) {
-        this.streamWebSocketHandler = streamWebSocketHandler || new StreamWebSocketHandler(new DomAdapter());
+    constructor(streamApplicationService) {
+        this.streamApplicationService = streamApplicationService || new StreamApplicationService();
     }
 
     start() {
-        this.streamWebSocketHandler.connect();
+        this.streamApplicationService.startStream();
     }
 
     stop() {
-        this.streamWebSocketHandler.disconnect();
+        this.streamApplicationService.stopStream();
     }
 }
