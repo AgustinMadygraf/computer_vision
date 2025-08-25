@@ -8,7 +8,14 @@ import { StreamUIStatusPresenter } from '../interface_adapters/presenter/stream_
 import { DomAdapter } from '../infrastructure/dom_adapter.js';
 
 export class StreamApplicationService {
-    constructor({ domAdapter = new DomAdapter() } = {}) {
+    /**
+     * @param {Object} options
+     * @param {Object} options.config - Configuración de streaming (host, wsPort, wsPath)
+     * @param {DomAdapter} [options.domAdapter]
+     */
+    constructor({ config, domAdapter = new DomAdapter() } = {}) {
+        if (!config) throw new Error('StreamApplicationService requiere un objeto de configuración');
+        this.config = config;
         this.streamEntity = new StreamEntity();
         this.uiPresenter = new StreamUIStatusPresenter(domAdapter);
         this.streamStatusUseCase = new StreamStatusUseCase(
@@ -24,7 +31,7 @@ export class StreamApplicationService {
 
     startStream() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.hostname}:${window.STREAM_SERVER_CONFIG.wsPort}${window.STREAM_SERVER_CONFIG.wsPath}`;
+        const wsUrl = `${protocol}//${this.config.host}:${this.config.wsPort}${this.config.wsPath}`;
         this.ws = new WebSocket(wsUrl);
 
         this.ws.onopen = () => {
